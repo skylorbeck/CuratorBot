@@ -1,23 +1,24 @@
 package website.skylorbeck.curatorbot;
 
-import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
-import net.dv8tion.jda.api.JDAInfo;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Activity;
+import net.dv8tion.jda.api.entities.Emote;
 import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.ReadyEvent;
-import net.dv8tion.jda.api.events.ShutdownEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.managers.EmoteManager;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
-import net.dv8tion.jda.internal.JDAImpl;
+import net.dv8tion.jda.internal.entities.EmoteImpl;
+import net.dv8tion.jda.internal.managers.EmoteManagerImpl;
+import net.dv8tion.jda.internal.requests.RestActionImpl;
+import net.dv8tion.jda.internal.requests.Route;
 import org.jetbrains.annotations.NotNull;
 
 import javax.security.auth.login.LoginException;
-import java.util.logging.Level;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.logging.Logger;
 
 public class CuratorBot extends ListenerAdapter {
@@ -34,27 +35,27 @@ public class CuratorBot extends ListenerAdapter {
     }
 
     @Override
-    public void onGenericEvent(@NotNull GenericEvent event) {
-        super.onGenericEvent(event);
-    }
-
-    @Override
-    public void onReady(@NotNull ReadyEvent event) {
-        super.onReady(event);
-    }
-
-    @Override
-    public void onShutdown(@NotNull ShutdownEvent event) {
-        super.onShutdown(event);
-    }
-
-    @Override
     public void onMessageReceived(@NotNull MessageReceivedEvent event) {
-        Message msg = event.getMessage();
-        if (!event.getAuthor().isBot() && msg.getContentDisplay().startsWith("!")) {
+        String msg = event.getMessage().getContentDisplay();
+        if (!event.getAuthor().isBot() && msg.startsWith("!")) {
             event.getMessage().delete().queue();
-            if (msg.getContentDisplay().contains("shutdown") && event.getMember().hasPermission(Permission.BAN_MEMBERS)) {
-                event.getJDA().shutdown();
+
+            if (event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
+                if (msg.contains("shutdown")) {
+                    event.getJDA().shutdown();
+                } else if (msg.contains("poll")) {
+                    String[] choices = msg.substring(6).split(",");
+                    StringBuilder message = new StringBuilder("Vote Below\n");
+                    for (int i = 0; i < choices.length; i++) {
+                        message.append(i + 1).append("\uFE0F\u20E3").append(" ").append(choices[i]).append("\n");
+                    }
+                    event.getChannel().sendMessage(message).queue(sentMessage -> {
+                        for (int i = 0; i < choices.length; i++) {
+                            sentMessage.addReaction((i + 1) + "\uFE0F\u20E3").queue();
+                        }
+                    });
+
+                }
             }
             super.onMessageReceived(event);
         }
