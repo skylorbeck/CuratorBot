@@ -1,2 +1,4 @@
 # Project exclude paths
 /.gradle/
+/out/artifacts/CuratorBot_main_jar/CuratorBot.exe
+/out/artifacts/CuratorBot_main_jar/CuratorBot.main.jar
