@@ -44,8 +44,8 @@ public class CuratorBot extends ListenerAdapter {
                 if (msg.contains("shutdown")) {
                     event.getJDA().shutdown();
                 } else if (msg.contains("poll")) {
-                    String[] choices = msg.substring(6).split(",");
-                    StringBuilder message = new StringBuilder("Vote Below\n");
+                    String[] choices = msg.substring(5).split(",");
+                    StringBuilder message = new StringBuilder("Vote by choosing a reaction!\n");
                     for (int i = 0; i < choices.length; i++) {
                         message.append(i + 1).append("\uFE0F\u20E3").append(" ").append(choices[i]).append("\n");
                     }
