@@ -2,12 +2,11 @@ package website.skylorbeck.curatorbot;
 
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Activity;
-import net.dv8tion.jda.api.entities.Emote;
-import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.managers.EmoteManager;
+import net.dv8tion.jda.api.requests.restaction.MessageAction;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
 import net.dv8tion.jda.api.utils.TimeUtil;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
@@ -20,6 +19,8 @@ import org.jetbrains.annotations.NotNull;
 import javax.security.auth.login.LoginException;
 import java.time.Instant;
 import java.time.temporal.TemporalField;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -45,11 +46,10 @@ public class CuratorBot extends ListenerAdapter {
         String msg = event.getMessage().getContentDisplay().toLowerCase(Locale.ROOT);
         if (!event.getAuthor().isBot()) {
             if (msg.startsWith("!")) {
+                MessageChannel channel = event.getChannel();
                 msg = msg.substring(1);
-                event.getMessage().delete().queue();
 
                 if (event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
-
                     if (msg.startsWith("shutdown")) {
                         event.getJDA().shutdown();
                     } else if (msg.startsWith("poll")) {
@@ -58,33 +58,62 @@ public class CuratorBot extends ListenerAdapter {
                         for (int i = 0; i < choices.length; i++) {
                             message.append(i + 1).append("\uFE0F\u20E3").append(" ").append(choices[i]).append("\n");
                         }
-                        event.getChannel().sendMessage(message).queue(sentMessage -> {
+                        channel.sendMessage(message).queue(sentMessage -> {
                             for (int i = 0; i < choices.length; i++) {
                                 sentMessage.addReaction((i + 1) + "\uFE0F\u20E3").queue();
                             }
                         });
+                    } else if (msg.startsWith("rule ")) {
+                        String[] rule = new String[]{
+                                "Rule 1: Be Nice - This means no insulting others or their Artwork. Constructive Criticism is OK.",
+                                "Rule 2: NSFW only in NSFW channels. No porn. No Gore.",
+                                "Rule 3: No Advertising or Spamming your stuff without permission directly from an Admin"
+                        };
+                        msg = msg.substring(5);
+                        Message message = event.getMessage().getReferencedMessage();
+                        if (msg.startsWith("1")) {
+                            if (message != null) {
+                                message.reply(rule[0]).queue();
+                            } else {
+                                channel.sendMessage(rule[0]).queue();
+                            }
+                        } else if (msg.startsWith("2")) {
+                            if (message != null) {
+                                message.reply(rule[1]).queue();
+                            } else {
+                                channel.sendMessage(rule[1]).queue();
+                            }
+                        } else if (msg.startsWith("3")) {
+                            if (message != null) {
+                                message.reply(rule[2]).queue();
+                            } else {
+                                channel.sendMessage(rule[2]).queue();
+                            }
+                        }
                     }
                 }
                 StringBuilder message = new StringBuilder();
                 if (msg.startsWith("random")) {
                     msg = msg.substring(6);
-                        int max = 20;
+                    int max = 20;
+                    try {
+                        max = Integer.parseInt(msg);
+                    } catch (Exception ignored) {
                         try {
-                            max = Integer.parseInt(msg);
-                        } catch (Exception ignored) {
-                            try {
-                                max = Integer.parseInt(msg.substring(1));
-                            }catch (Exception ignored2){}
+                            max = Integer.parseInt(msg.substring(1));
+                        } catch (Exception ignored2) {
                         }
-                        message.append("Rolling a d").append(max).append(" for ").append(event.getMember().getEffectiveName()).append("\n");
-                        int result = ran.nextInt(max) + 1;
-                        String resultS = result + "";
-                        String[] results = resultS.split("");
-                        for (String s : results) {
-                            message.append(s).append("\uFE0F\u20E3");
-                        }
-                    event.getChannel().sendMessage(message).queue();
+                    }
+                    message.append("Rolling a d").append(max).append(" for ").append(event.getMember().getAsMention()).append("\n");
+                    int result = ran.nextInt(max) + 1;
+                    String resultS = result + "";
+                    String[] results = resultS.split("");
+                    for (String s : results) {
+                        message.append(s).append("\uFE0F\u20E3");
+                    }
+                    channel.sendMessage(message).queue();
                 }
+                event.getMessage().delete().queue();
             }
         }
         super.onMessageReceived(event);
