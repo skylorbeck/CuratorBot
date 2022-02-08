@@ -66,6 +66,7 @@ public class CuratorBot extends ListenerAdapter {
                     } else if (msg.startsWith("rule ")) {
                         String[] rule = new String[]{
                                 "Rule 1: Be Nice - This means no insulting others or their Artwork. Constructive Criticism is OK.",
+                                "Rule 1a: Be Nice - No racial slurs, no derogatory remarks for any reason. This includes jokes.",
                                 "Rule 2: NSFW only in NSFW channels. No porn. No Gore.",
                                 "Rule 3: No Advertising or Spamming your stuff without permission directly from an Admin"
                         };
@@ -90,6 +91,20 @@ public class CuratorBot extends ListenerAdapter {
                                 channel.sendMessage(rule[2]).queue();
                             }
                         }
+                    } else if(msg.startsWith("socials")) {
+                        String[] socials = new String[]{
+                                "CurseForge:https://www.curseforge.com/members/skylorbeck/projects",
+                                "Patreon:https://www.patreon.com/SkylorBeck",
+                                "YouTube:https://www.youtube.com/c/SkylorBeck",
+                                "Twitter:https://twitter.com/BeckSkylor",
+                                "GitHub:https://github.com/Skylortrexler",
+                                "Personal Website:https://skylorbeck.website/"
+                        };
+                        StringBuilder message = new StringBuilder("My Social Links:\n");
+                        for (String social : socials) {
+                            message.append(social).append("\n");
+                        }
+                        channel.sendMessage(message).queue();
                     }
                 }
                 StringBuilder message = new StringBuilder();
