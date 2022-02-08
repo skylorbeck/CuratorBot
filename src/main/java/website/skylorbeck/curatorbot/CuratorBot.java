@@ -66,17 +66,25 @@ public class CuratorBot extends ListenerAdapter {
                     } else if (msg.startsWith("rule ")) {
                         String[] rule = new String[]{
                                 "Rule 1: Be Nice - This means no insulting others or their Artwork. Constructive Criticism is OK.",
-                                "Rule 1a: Be Nice - No racial slurs, no derogatory remarks for any reason. This includes jokes.",
                                 "Rule 2: NSFW only in NSFW channels. No porn. No Gore.",
-                                "Rule 3: No Advertising or Spamming your stuff without permission directly from an Admin"
+                                "Rule 3: No Advertising or Spamming your stuff without permission directly from an Admin",
+                                "Rule 1a: Be Nice - No racial slurs, no derogatory remarks for any reason. This includes jokes.",
                         };
                         msg = msg.substring(5);
                         Message message = event.getMessage().getReferencedMessage();
                         if (msg.startsWith("1")) {
-                            if (message != null) {
-                                message.reply(rule[0]).queue();
+                            if (msg.startsWith("1a")) {
+                                if (message != null) {
+                                    message.reply(rule[3]).queue();
+                                } else {
+                                    channel.sendMessage(rule[3]).queue();
+                                }
                             } else {
-                                channel.sendMessage(rule[0]).queue();
+                                if (message != null) {
+                                    message.reply(rule[0]).queue();
+                                } else {
+                                    channel.sendMessage(rule[0]).queue();
+                                }
                             }
                         } else if (msg.startsWith("2")) {
                             if (message != null) {
