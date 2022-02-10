@@ -1,36 +1,23 @@
 package website.skylorbeck.curatorbot;
 
-import com.vdurmont.emoji.EmojiManager;
 import com.vdurmont.emoji.EmojiParser;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
-import net.dv8tion.jda.api.events.emote.update.EmoteUpdateRolesEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.events.message.react.MessageReactionAddEvent;
 import net.dv8tion.jda.api.events.message.react.MessageReactionRemoveEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
-import net.dv8tion.jda.api.managers.EmoteManager;
 import net.dv8tion.jda.api.requests.restaction.MessageAction;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
-import net.dv8tion.jda.api.utils.TimeUtil;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
-import net.dv8tion.jda.internal.entities.EmoteImpl;
-import net.dv8tion.jda.internal.managers.EmoteManagerImpl;
-import net.dv8tion.jda.internal.requests.RestActionImpl;
-import net.dv8tion.jda.internal.requests.Route;
 import org.jetbrains.annotations.NotNull;
 
 import javax.security.auth.login.LoginException;
-import java.io.UnsupportedEncodingException;
-import java.time.Instant;
-import java.time.temporal.TemporalField;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
-import java.util.logging.Level;
+import java.util.ArrayList;
+import java.util.Locale;
+import java.util.Random;
 import java.util.logging.Logger;
 
 public class CuratorBot extends ListenerAdapter {
@@ -146,7 +133,7 @@ public class CuratorBot extends ListenerAdapter {
             return rule;
         }
     }
-// R:Admin(836874169085460512),
+    // R:Admin(836874169085460512),
 // R:Patreon(914756962833539073),
 // R:Curator(852401504156385301),
 // R:Exalted(914626053769691136),
@@ -161,9 +148,11 @@ public class CuratorBot extends ListenerAdapter {
 // R:Beta Tester(896981811270406214),
 // R:Snowball Bot(920008550414180383),
 // R:@everyone(836872336417357874)
+// R:@Accepted Rules(941379814181462067)
     enum Roles{
         Artist("lower_left_paintbrush",923362820555436042L),
         BetaTester("WIP",896981811270406214L),
+        AcceptedRules("white_check_mark",941379814181462067L),
         ;
 
         private final long id;
@@ -194,8 +183,14 @@ public class CuratorBot extends ListenerAdapter {
                     event.getGuild().addRoleToMember(event.getMember(), event.getGuild().getRoleById(role.getId())).queue();
                 }
             }
+        } else if (channel.getIdLong() == 836876121685360683L) {
+            String ID = event.getReactionEmote().isEmoji()? EmojiParser.parseToAliases(event.getReactionEmote().getEmoji()):event.getReactionEmote().getName();
+                if (ID.contains(Roles.AcceptedRules.getEmoji())) {
+                    event.getGuild().addRoleToMember(event.getMember(), event.getGuild().getRoleById(Roles.AcceptedRules.getId())).queue();
+                }
         }
 //        System.out.println(event.getGuild().getRoles());
+//        System.out.println(event.getReactionEmote().isEmoji()? EmojiParser.parseToAliases(event.getReactionEmote().getEmoji()):event.getReactionEmote().getName());;
         super.onMessageReactionAdd(event);
     }
 
