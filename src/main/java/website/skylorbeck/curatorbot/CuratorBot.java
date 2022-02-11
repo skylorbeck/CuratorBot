@@ -17,6 +17,7 @@ import org.jetbrains.annotations.NotNull;
 import javax.security.auth.login.LoginException;
 import java.util.ArrayList;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Random;
 import java.util.logging.Logger;
 
@@ -180,13 +181,13 @@ public class CuratorBot extends ListenerAdapter {
             String ID = event.getReactionEmote().isEmoji()? EmojiParser.parseToAliases(event.getReactionEmote().getEmoji()):event.getReactionEmote().getName();
             for (Roles role : Roles.values()) {
                 if (ID.contains(role.getEmoji())) {
-                    event.getGuild().addRoleToMember(event.getMember(), event.getGuild().getRoleById(role.getId())).queue();
+                    event.getGuild().addRoleToMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(role.getId()))).queue();
                 }
             }
         } else if (channel.getIdLong() == 836876121685360683L) {
             String ID = event.getReactionEmote().isEmoji()? EmojiParser.parseToAliases(event.getReactionEmote().getEmoji()):event.getReactionEmote().getName();
                 if (ID.contains(Roles.AcceptedRules.getEmoji())) {
-                    event.getGuild().addRoleToMember(event.getMember(), event.getGuild().getRoleById(Roles.AcceptedRules.getId())).queue();
+                    event.getGuild().addRoleToMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(Roles.AcceptedRules.getId()))).queue();
                 }
         }
 //        System.out.println(event.getGuild().getRoles());
@@ -202,7 +203,7 @@ public class CuratorBot extends ListenerAdapter {
             String ID = event.getReactionEmote().isEmoji()? EmojiParser.parseToAliases(event.getReactionEmote().getEmoji()):event.getReactionEmote().getName();
             for (Roles role : Roles.values()) {
                 if (ID.contains(role.getEmoji())) {
-                    event.getGuild().removeRoleFromMember(event.getMember(), event.getGuild().getRoleById(role.getId())).queue();
+                    event.getGuild().removeRoleFromMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(role.getId()))).queue();
                 }
             }
         }
@@ -212,16 +213,16 @@ public class CuratorBot extends ListenerAdapter {
     @Override
     public void onMessageReceived(@NotNull MessageReceivedEvent event) {
         if (event.getAuthor().isBot()) return;
-        if (lastMessage!=null && lastMessage.equals("")) {
-            if (lastMessage.equals(event.getMessage().getContentDisplay())) {
-                event.getMessage().delete().queue();
-                event.getChannel().sendMessage("Please no spamming").queue();
-            } else {
-                lastMessage = event.getMessage().getContentDisplay();
-            }
-        } else {
-            lastMessage = event.getMessage().getContentDisplay();
-        }
+//        if (lastMessage!=null) {
+//            if (lastMessage.equals(event.getMessage().getContentDisplay())) {
+//                event.getMessage().delete().queue();
+//                event.getChannel().sendMessage("Please no spamming").queue();
+//            } else {
+//                lastMessage = event.getMessage().getContentDisplay();
+//            }
+//        } else {
+//            lastMessage = event.getMessage().getContentDisplay();
+//        }
         String msg = event.getMessage().getContentDisplay().toLowerCase(Locale.ROOT);
         if (msg.contains("discord.gg")){
             if (event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
