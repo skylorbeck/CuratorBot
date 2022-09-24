@@ -1,20 +1,34 @@
 package website.skylorbeck.curatorbot;
 
-import com.vdurmont.emoji.EmojiParser;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.channel.Channel;
+import net.dv8tion.jda.api.entities.emoji.CustomEmoji;
+import net.dv8tion.jda.api.entities.emoji.UnicodeEmoji;
+import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.events.message.react.MessageReactionAddEvent;
 import net.dv8tion.jda.api.events.message.react.MessageReactionRemoveEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
-import net.dv8tion.jda.api.requests.restaction.MessageAction;
+import net.dv8tion.jda.api.interactions.commands.OptionMapping;
+import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
+import net.dv8tion.jda.internal.interactions.CommandDataImpl;
 import org.jetbrains.annotations.NotNull;
 
 import javax.security.auth.login.LoginException;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Locale;
 import java.util.Objects;
@@ -23,8 +37,7 @@ import java.util.logging.Logger;
 
 public class CuratorBot extends ListenerAdapter {
     private static final Logger log = Logger.getLogger("CuratorBot");
-    private static final Random ran = new Random(System.currentTimeMillis());
-    private String lastMessage;
+    private static Random ran;
 
     public static void main(String[] args) throws LoginException {
         JDABuilder builder = JDABuilder.createDefault(args[0]);
@@ -33,143 +46,71 @@ public class CuratorBot extends ListenerAdapter {
         builder.setMemberCachePolicy(MemberCachePolicy.ONLINE.or(MemberCachePolicy.OWNER));
         builder.setActivity(Activity.watching("everything"));
         builder.addEventListeners(new CuratorBot());
-        builder.build();
+
+        JDA jda = builder.build();
+
+        CommandDataImpl damage = new CommandDataImpl("damage", "Read something horrible? Take some damage");
+        damage.addOption(OptionType.INTEGER, "amount", "How much damage to take", true);
+        damage.addOption(OptionType.STRING, "type", "What type of damage to take", false);
+
+        jda.upsertCommand(damage).queue();
+
+        CommandDataImpl randomNumber = new CommandDataImpl("random", "Get a random number");
+        randomNumber.addOption(OptionType.INTEGER, "min", "The minimum number", true);
+        randomNumber.addOption(OptionType.INTEGER, "max", "The maximum number", true);
+
+        jda.upsertCommand(randomNumber).queue();
+
+        CommandDataImpl roll = new CommandDataImpl("roll", "Roll some dice");
+        roll.addOption(OptionType.INTEGER, "amount", "How many dice to roll", true);
+        roll.addOption(OptionType.INTEGER, "sides", "How many sides the dice have", true);
+
+        jda.upsertCommand(roll).queue();
+
+        CommandDataImpl coinCount = new CommandDataImpl("coins", "Open your coin purse and count your coins");
+        jda.upsertCommand(coinCount).queue();
+
+        CommandDataImpl silverCount = new CommandDataImpl("silvers", "How many Silver Crowns do you have?");
+        jda.upsertCommand(silverCount).queue();
+
+        CommandDataImpl goldCount = new CommandDataImpl("golds", "How many Gold Crowns do you have?");
+        jda.upsertCommand(goldCount).queue();
+
+        ran = new Random(System.currentTimeMillis());
+//        log.info("Initalized Random");
+        Paths.get("users/").toFile().mkdirs();
+//        log.info("Created users folder");
+        log.info("CuratorBot is ready!");
     }
 
-    enum Commands {
-        Help("**!Help** Show this message"),
-        Random("**!Random** Gets a random number between 1-20\n     **`(Amount)`** Get a random number with a max of **`(Amount)`**"),
-        Damage("**!Damage `(Amount)`** Take damage.\n     **`(Type) (Amount)`** Take damage of type.\n     **`'type||types'`** Show all types."),
-        Rules("**!Rules** Show the rules.\n     **`(Rule Number)`** optionally show a specific rule"),
-        Socials("**!Socials** Show the socials"),
-        ;
-
-        private final String description;
-
-        Commands(String s) {
-            description = s;
-        }
-
-        public String getDescription() {
-            return description;
-        }
-    }
-
-    enum Socials {
-        CurseForge("https://www.curseforge.com/members/skylorbeck/projects"),
-        Patreon("https://www.patreon.com/SkylorBeck"),
-        Twitter("https://twitter.com/BeckSkylor"),
-        YouTube("https://www.youtube.com/c/SkylorBeck"),
-        GitHub("https://github.com/Skylortrexler"),
-        Website("https://skylorbeck.website/");
-
-        private final String url;
-
-        Socials(String s) {
-            url = s;
-        }
-
-        public String getUrl() {
-            return url;
-        }
-    }
-
-    enum DamageTypes {
-        Emotional,
-        Physical,
-        Spiritual,
-        Mental,
-        Social,
-        Environmental,
-        Electrical,
-        Chemical,
-        Kinetic,
-        Radiation,
-        Plasma,
-        Nuclear,
-        Quantum,
-        Magic,
-        Energy,
-        Heat,
-        Cold,
-        Tachyon,
-        Cosmic,
-        Slashing,
-        Piercing,
-        Blunt,
-        Acid,
-        Corrosive,
-        Fire,
-        Ice,
-        Lightning,
-        Thunder,
-        Wind,
-        Earth,
-        Water,
-        Stone,
-        Metal,
-        Wood,
-        Flesh,
-        Nature,
-        Skeleton,
-        Celestial,
-        Demonic,
-        Necrotic
-    }
-
-    enum Rules {
-        Rule1("`Rule 1:`\nNo racism, sexism, homophobia, or transphobia."),
-        Rule2("`Rule 2:`\nNo hate speech, hate symbols, or hate music."),
-        Rule3("`Rule 3:`\nNo Advertising, Spam, or Self-promotion without being approved by Skylor."),
-        Rule4("`Rule 4:`\nNo porn, gore or death"),
-        ;
-
-        private final String rule;
-
-        Rules(String s) {
-            rule = s;
-        }
-
-        public String getRule() {
-            return rule;
-        }
-    }
-    // R:Admin(836874169085460512),
-// R:Patreon(914756962833539073),
-// R:Curator(852401504156385301),
-// R:Exalted(914626053769691136),
-// R:Trusted Authority(916890181154508800),
-// R:Internal Tester(853420931014852618),
-// R:Noble Dog Knight(922273823095660595),
-// R:Lizard Guard(914756479083495474),
-// R:Frog Knight(914756341401255937),
-// R:Server Booster(936898416020193331),
-// R:Artist - Approved(936982957766361158),
-// R:Artist(923362820555436042),
-// R:Beta Tester(896981811270406214),
-// R:Snowball Bot(920008550414180383),
-// R:@everyone(836872336417357874)
-// R:@Accepted Rules(941379814181462067)
-    enum Roles{
-        Artist("lower_left_paintbrush",923362820555436042L),
-        BetaTester("WIP",896981811270406214L),
-        AcceptedRules("white_check_mark",941379814181462067L),
-        ;
-
-        private final long id;
-        private final String emoji;
-
-        Roles(String moji, long l) {
-            emoji = moji;
-            id = l;
-        }
-
-        public long getId() {
-            return id;
-        }
-
-        public String getEmoji() {
-            return emoji;
+    @Override
+    public void onSlashCommandInteraction(@NotNull SlashCommandInteractionEvent event) {
+        if (event.getName().equals("damage")) {
+            int amount = event.getOption("amount").getAsInt();
+            OptionMapping type = event.getOption("type");
+            if (type != null) {
+                event.reply(event.getUser().getAsMention()+" took " + amount + " " + type.getAsString() + " damage!").queue();
+            } else {
+                event.reply(event.getUser().getAsMention()+" took " + amount + " damage!").queue();
+            }
+        } else if (event.getName().equals("random")) {
+            int min = event.getOption("min").getAsInt();
+            int max = event.getOption("max").getAsInt();
+            event.reply("Your random number is " + ran.nextInt(max - min + 1) + min + "!").queue();
+        } else if (event.getName().equals("roll")) {
+            int amount = event.getOption("amount").getAsInt();
+            int sides = event.getOption("sides").getAsInt();
+            int total = 0;
+            for (int i = 0; i < amount; i++) {
+                total += ran.nextInt(sides) + 1;
+            }
+            event.reply(event.getUser().getAsMention()+" rolled " + amount + "d" + sides + " and got " + total + "!").queue();
+        } else if (event.getName().equals("coins")) {
+            event.reply("You have "+ checkEmote(event.getUser().getId(), "coin")+" coins").setEphemeral(true).queue();
+        } else if (event.getName().equals("silvers")) {
+            event.reply("You have "+ checkEmote(event.getUser().getId(), "silver")+" silver crowns").setEphemeral(true).queue();
+        } else if (event.getName().equals("golds")) {
+            event.reply("You have "+ checkEmote(event.getUser().getId(), "gold")+" gold crowns").setEphemeral(true).queue();
         }
     }
 
@@ -178,184 +119,183 @@ public class CuratorBot extends ListenerAdapter {
         if (event.getUser().isBot()) return;
         Channel channel = event.getChannel();
         if (channel.getIdLong() == 896980872656457788L) {
-            String ID = event.getReactionEmote().isEmoji()? EmojiParser.parseToAliases(event.getReactionEmote().getEmoji()):event.getReactionEmote().getName();
-            for (Roles role : Roles.values()) {
-                if (ID.contains(role.getEmoji())) {
-                    event.getGuild().addRoleToMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(role.getId()))).queue();
+            switch (event.getEmoji().getType()) {
+                case UNICODE:
+                    UnicodeEmoji emoji = event.getEmoji().asUnicode();
+//                    log.info("Unicode Emoji as Codepoints: " + emoji.getAsCodepoints());
+//                    log.info("Unicode Emoji Formatted: " + emoji.getFormatted());
+//                    log.info("Unicode Emoji Name: " + emoji.getName());
+                    if (emoji.getAsCodepoints().equals("U+1f58cU+fe0f")) {
+                        event.getGuild().addRoleToMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(923362820555436042L))).queue();
+                    }
+                    break;
+                case CUSTOM:
+                    CustomEmoji customEmoji = event.getEmoji().asCustom();
+//                    log.info("Custom Emoji: " + customEmoji.getName());
+                    if (customEmoji.getName().equals("WIP")) {
+                        event.getGuild().addRoleToMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(896981811270406214L))).queue();
+                    }
+                    break;
+            }
+
+
+        }
+
+        if (event.isFromThread()) {
+            Message message = event.getChannel().retrieveMessageById(event.getMessageId()).complete();
+            String authorID = message.getAuthor().getId();
+            if (!event.getUserId().equals(authorID)) {
+                switch (event.getEmoji().getType()) {
+                    case UNICODE:
+                        break;
+                    case CUSTOM:
+                        CustomEmoji customEmoji = event.getEmoji().asCustom();
+//                log.info("Custom Emoji: " + customEmoji.getName());
+                        if (customEmoji.getName().equals("bigcoin")) {
+                            AddEmote(authorID, "coin");
+                        } else if (customEmoji.getName().equals("silver")) {
+                            AddEmote(authorID, "silver");
+                        } else if (customEmoji.getName().equals("gold")) {
+                            AddEmote(authorID, "gold");
+                        }
+                        break;
                 }
             }
-        } else if (channel.getIdLong() == 836876121685360683L) {
-            String ID = event.getReactionEmote().isEmoji()? EmojiParser.parseToAliases(event.getReactionEmote().getEmoji()):event.getReactionEmote().getName();
-                if (ID.contains(Roles.AcceptedRules.getEmoji())) {
-                    event.getGuild().addRoleToMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(Roles.AcceptedRules.getId()))).queue();
-                }
         }
-//        System.out.println(event.getGuild().getRoles());
-//        System.out.println(event.getReactionEmote().isEmoji()? EmojiParser.parseToAliases(event.getReactionEmote().getEmoji()):event.getReactionEmote().getName());;
         super.onMessageReactionAdd(event);
     }
 
     @Override
     public void onMessageReactionRemove(@NotNull MessageReactionRemoveEvent event) {
+
         if (event.getUser().isBot()) return;
         Channel channel = event.getChannel();
         if (channel.getIdLong() == 896980872656457788L) {
-            String ID = event.getReactionEmote().isEmoji()? EmojiParser.parseToAliases(event.getReactionEmote().getEmoji()):event.getReactionEmote().getName();
-            for (Roles role : Roles.values()) {
-                if (ID.contains(role.getEmoji())) {
-                    event.getGuild().removeRoleFromMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(role.getId()))).queue();
-                }
+            switch (event.getEmoji().getType()) {
+                case UNICODE:
+                    UnicodeEmoji emoji = event.getEmoji().asUnicode();
+                    if (emoji.getAsCodepoints().equals("U+1f58cU+fe0f")) {
+                        event.getGuild().removeRoleFromMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(923362820555436042L))).queue();
+                    }
+                    break;
+                case CUSTOM:
+                    CustomEmoji customEmoji = event.getEmoji().asCustom();
+//                    log.info("Custom Emoji: " + customEmoji.getName());
+                    if (customEmoji.getName().equals("WIP")) {
+                        event.getGuild().removeRoleFromMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(896981811270406214L))).queue();
+                    }
+                    break;
             }
         }
-        super.onMessageReactionRemove(event);
+        if (event.isFromThread()) {
+            Message message = event.getChannel().retrieveMessageById(event.getMessageId()).complete();
+            String authorID = message.getAuthor().getId();
+            switch (event.getEmoji().getType()) {
+                case UNICODE:
+                    break;
+                case CUSTOM:
+                    CustomEmoji customEmoji = event.getEmoji().asCustom();
+                    if (customEmoji.getName().equals("bigcoin")) {
+                        RemoveEmote(authorID, "coin");
+                    } else if (customEmoji.getName().equals("silver")) {
+                        RemoveEmote(authorID, "silver");
+                    } else if (customEmoji.getName().equals("gold")) {
+                        RemoveEmote(authorID, "gold");
+                    }
+                    break;
+            }
+        }
+    }
+    public int AddEmote(String authorID, String emoteName) {
+        File userFile = CheckForUserFile(authorID);
+        //read the file
+        try {
+            FileInputStream fis = new FileInputStream(userFile);
+            byte[] data = new byte[(int) userFile.length()];
+            fis.read(data);
+            fis.close();
+            String json = new String(data, StandardCharsets.UTF_8);
+            Gson gson = new Gson();
+            JsonObject jsonObject = gson.fromJson(json, JsonObject.class);
+            int coins = jsonObject.get(emoteName).getAsInt();
+            coins++;
+            jsonObject.addProperty(emoteName, coins);
+            FileOutputStream fos = new FileOutputStream(userFile);
+            fos.write(gson.toJson(jsonObject).getBytes());
+            fos.close();
+            return coins;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return 0;
     }
 
-    @Override
-    public void onMessageReceived(@NotNull MessageReceivedEvent event) {
-        if (event.getAuthor().isBot()) return;
-//        if (lastMessage!=null) {
-//            if (lastMessage.equals(event.getMessage().getContentDisplay())) {
-//                event.getMessage().delete().queue();
-//                event.getChannel().sendMessage("Please no spamming").queue();
-//            } else {
-//                lastMessage = event.getMessage().getContentDisplay();
-//            }
-//        } else {
-//            lastMessage = event.getMessage().getContentDisplay();
-//        }
-        String msg = event.getMessage().getContentDisplay().toLowerCase(Locale.ROOT);
-        if (msg.contains("discord.gg")){
-            if (event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
-                return;
-            }
-            event.getMessage().delete().queue();
-            event.getChannel().sendMessage("Please no advertising other Discord Servers without permission").queue();
-        }
-        if (msg.startsWith("!")) {
-            MessageChannel channel = event.getChannel();
-            Message message = event.getMessage().getReferencedMessage();
-            StringBuilder newMessage = new StringBuilder();
+    public int RemoveEmote(String authorID, String emoteName){
 
-            msg = msg.substring(1);
-            msg = msg.replaceAll("\\s", "");
-            //admin only commands
-            if (event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
-                if (msg.startsWith("shutdown")) {
-                    event.getJDA().shutdown();
-                } else if (msg.startsWith("poll")) {
-                    String[] choices = msg.substring(4).split(",");
-                    newMessage = new StringBuilder("Vote by choosing a reaction!\n");
-                    for (int i = 0; i < choices.length; i++) {
-                        newMessage.append(i + 1).append("\uFE0F\u20E3").append(" ").append(choices[i]).append("\n");
-                    }
-                    channel.sendMessage(newMessage).queue(sentMessage -> {
-                        for (int i = 0; i < choices.length; i++) {
-                            sentMessage.addReaction((i + 1) + "\uFE0F\u20E3").queue();
-                        }
-                    });
-                }
+        File userFile = CheckForUserFile(authorID);;
+        //read the file
+        try {
+            FileInputStream fis = new FileInputStream(userFile);
+            byte[] data = new byte[(int) userFile.length()];
+            fis.read(data);
+            fis.close();
+            String json = new String(data, StandardCharsets.UTF_8);
+            Gson gson = new Gson();
+            JsonObject jsonObject = gson.fromJson(json, JsonObject.class);
+            int coins = jsonObject.get(emoteName).getAsInt();
+            coins--;
+            if (coins < 0) {
+                coins = 0;
             }
-            //public commands
-            if (msg.startsWith("random")) {
-                msg = msg.substring(6);
-                int max = 20;
-                try {
-                    max = Integer.parseInt(msg);
-                } catch (Exception ignored) {
-                }
-                newMessage.append("Rolling a d").append(max).append(" for ").append(event.getMember().getAsMention()).append("\n");
-                int result = ran.nextInt(max) + 1;
-                String resultS = result + "";
-                String[] results = resultS.split("");
-                for (String s : results) {
-                    newMessage.append(s).append("\uFE0F\u20E3");
-                }
-                channel.sendMessage(newMessage).queue();
-            } else if (msg.startsWith("damage")) {
-                int damage = 0;
-                msg = msg.substring(6);
-                try {
-                    damage = Integer.parseInt(msg);
-                    if (damage < 0) {
-                        damage = -damage;
-                        newMessage.append(event.getMember().getAsMention()).append(" was healed for ").append(damage).append(" health!");
-                    } else {
-                        newMessage.append(event.getMember().getAsMention()).append(" has taken ").append(damage).append(" damage!");
-                    }
-                    if (message != null && message.getMember() != null) {
-                        message.reply(newMessage).queue();
-                    } else {
-                        channel.sendMessage(newMessage).queue();
-                    }
-                } catch (NumberFormatException ignored) {
-                    if (msg.startsWith("types") || msg.startsWith("type")) {
-                        newMessage.append("Damage Types:\n");
-                        for (DamageTypes type : DamageTypes.values()) {
-                            newMessage.append(type.toString()).append(", ");
-                        }
-                        channel.sendMessage(newMessage).queue();
-                    } else for (DamageTypes damageType : DamageTypes.values()) {
-                        String arg = damageType.name().toLowerCase(Locale.ROOT);
-                        try {
-                            if (msg.startsWith(arg)) {
-                                msg = msg.substring(arg.length());
-                                try {
-                                    damage = Integer.parseInt(msg);
-                                    if (damage < 0) {
-                                        damage = -damage;
-                                        newMessage.append(event.getMember().getAsMention()).append(" was healed for ").append(damage).append(" ").append(arg).append(" health!");
-                                    } else {
-                                        newMessage.append(event.getMember().getAsMention()).append(" has taken ").append(damage).append(" ").append(arg).append(" damage!");
-                                    }
-                                    if (message != null && message.getMember() != null) {
-                                        message.reply(newMessage).queue();
-                                    } else {
-                                        channel.sendMessage(newMessage).queue();
-                                    }
-                                } catch (NumberFormatException ignored2) {
-                                }
-                            }
-                        } catch (ArrayIndexOutOfBoundsException ignored3) {
-                        }
-                    }
-                }
-            } else if (msg.startsWith("rule")) {
-                if (msg.startsWith("rules")) {
-                    newMessage.append("Rules:\n");
-                    for (Rules rule : Rules.values()) {
-                        newMessage.append(rule.getRule()).append("\n");
-                    }
-                    channel.sendMessage(newMessage).queue();
-                } else
-                    for (Rules rule : Rules.values()) {
-                        String ruleString = rule.getRule();
-                        if (msg.startsWith(rule.toString().toLowerCase(Locale.ROOT))) {
-                            newMessage.append(ruleString);
-                            if (message != null) {
-                                message.reply(newMessage.toString()).queue();
-                            } else {
-                                channel.sendMessage(newMessage.toString()).queue();
-                            }
-                        }
-                    }
-            } else if (msg.startsWith("socials") || msg.startsWith("social")) {
-                newMessage = new StringBuilder("My Social Links:\n");
-                ArrayList<MessageEmbed> embeds = new ArrayList<>();
-                for (Socials social : Socials.values()) {
-                    MessageEmbed embed = new EmbedBuilder().addField(new MessageEmbed.Field(social.name(), social.getUrl(), false)).build();
-                    embeds.add(embed);
-                }
-                MessageAction action = channel.sendMessage(newMessage.toString());
-                action.setEmbeds(embeds).queue();
-            } else if (msg.startsWith("help")) {
-                newMessage.append("Commands:\n");
-                for (Commands command : Commands.values()) {
-                    newMessage.append(command.getDescription()).append("\n");
-                }
-                channel.sendMessage(newMessage.toString()).queue();
-            }
-            event.getMessage().delete().queue();
+            jsonObject.addProperty(emoteName, coins);
+            FileOutputStream fos = new FileOutputStream(userFile);
+            fos.write(gson.toJson(jsonObject).getBytes());
+            fos.close();
+            return coins;
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        super.onMessageReceived(event);
+        return 0;
     }
+
+    public int checkEmote(String authorID, String emoteName){
+        File userFile = CheckForUserFile(authorID);
+        //read the file
+        try {
+            FileInputStream fis = new FileInputStream(userFile);
+            byte[] data = new byte[(int) userFile.length()];
+            fis.read(data);
+            fis.close();
+            String json = new String(data, StandardCharsets.UTF_8);
+            Gson gson = new Gson();
+            JsonObject jsonObject = gson.fromJson(json, JsonObject.class);
+            int coins = jsonObject.get(emoteName).getAsInt();
+            return coins;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+
+    private File CheckForUserFile(String authorID) {
+        File userFile = new File("users/"+ authorID +".json");
+        if (!userFile.exists()){
+            //create the file
+            try {
+                userFile.createNewFile();
+                FileOutputStream fos = new FileOutputStream(userFile);
+                JsonObject jsonObject = new JsonObject();
+                jsonObject.addProperty("coin", 0);
+                jsonObject.addProperty("silver", 0);
+                jsonObject.addProperty("gold", 0);
+                Gson gson = new Gson();
+                fos.write(gson.toJson(jsonObject).getBytes());
+                fos.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        return userFile;
+    }
+
 }
