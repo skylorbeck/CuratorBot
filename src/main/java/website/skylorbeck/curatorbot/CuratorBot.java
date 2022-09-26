@@ -16,8 +16,12 @@ import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.events.message.react.MessageReactionAddEvent;
 import net.dv8tion.jda.api.events.message.react.MessageReactionRemoveEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.commands.Command;
+import net.dv8tion.jda.api.interactions.commands.DefaultMemberPermissions;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
+import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
+import net.dv8tion.jda.api.requests.restaction.CacheRestAction;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import net.dv8tion.jda.internal.interactions.CommandDataImpl;
@@ -29,10 +33,8 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.Random;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 public class CuratorBot extends ListenerAdapter {
@@ -44,7 +46,7 @@ public class CuratorBot extends ListenerAdapter {
         // Set activity (like "playing Something")
         builder.disableCache(CacheFlag.ACTIVITY);
         builder.setMemberCachePolicy(MemberCachePolicy.ONLINE.or(MemberCachePolicy.OWNER));
-        builder.setActivity(Activity.watching("everything"));
+        builder.setActivity(Activity.watching("you"));
         builder.addEventListeners(new CuratorBot());
 
         JDA jda = builder.build();
@@ -76,6 +78,23 @@ public class CuratorBot extends ListenerAdapter {
         CommandDataImpl goldCount = new CommandDataImpl("golds", "How many Gold Crowns do you have?");
         jda.upsertCommand(goldCount).queue();
 
+        CommandDataImpl donateCoins = new CommandDataImpl("donate", "Donate some coins to your favorite team");
+        donateCoins.addOption(OptionType.ROLE, "team", "The team to Donate to", true);
+        donateCoins.addOption(OptionType.INTEGER, "amount", "How many coins to donate", true);
+        jda.upsertCommand(donateCoins).queue();
+
+        CommandDataImpl addCoins = new CommandDataImpl("addcoins", "Add some coins to a user");
+        addCoins.addOption(OptionType.USER, "user", "The user to add coins to", true);
+        addCoins.addOption(OptionType.INTEGER, "amount", "How many coins to add", true);
+        addCoins.setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.ADMINISTRATOR));
+        jda.upsertCommand(addCoins).queue();
+
+        CommandDataImpl leaderboard = new CommandDataImpl("leaderboard", "See who has the most coins");
+        jda.upsertCommand(leaderboard).queue();
+
+        CommandDataImpl teamleaderboard = new CommandDataImpl("teamleaderboard", "See which team has the most coins");
+        jda.upsertCommand(teamleaderboard).queue();
+
         ran = new Random(System.currentTimeMillis());
 //        log.info("Initalized Random");
         Paths.get("users/").toFile().mkdirs();
@@ -89,9 +108,9 @@ public class CuratorBot extends ListenerAdapter {
             int amount = event.getOption("amount").getAsInt();
             OptionMapping type = event.getOption("type");
             if (type != null) {
-                event.reply(event.getUser().getAsMention()+" took " + amount + " " + type.getAsString() + " damage!").queue();
+                event.reply(event.getUser().getAsMention() + " took " + amount + " " + type.getAsString() + " damage!").queue();
             } else {
-                event.reply(event.getUser().getAsMention()+" took " + amount + " damage!").queue();
+                event.reply(event.getUser().getAsMention() + " took " + amount + " damage!").queue();
             }
         } else if (event.getName().equals("random")) {
             int min = event.getOption("min").getAsInt();
@@ -104,44 +123,159 @@ public class CuratorBot extends ListenerAdapter {
             for (int i = 0; i < amount; i++) {
                 total += ran.nextInt(sides) + 1;
             }
-            event.reply(event.getUser().getAsMention()+" rolled " + amount + "d" + sides + " and got " + total + "!").queue();
-        } else if (event.getName().equals("coins")) {
-            event.reply("You have "+ checkEmote(event.getUser().getId(), "coin")+" coins").setEphemeral(true).queue();
-        } else if (event.getName().equals("silvers")) {
-            event.reply("You have "+ checkEmote(event.getUser().getId(), "silver")+" silver crowns").setEphemeral(true).queue();
-        } else if (event.getName().equals("golds")) {
-            event.reply("You have "+ checkEmote(event.getUser().getId(), "gold")+" gold crowns").setEphemeral(true).queue();
-        }
-    }
+            event.reply(event.getUser().getAsMention() + " rolled " + amount + "d" + sides + " and got " + total + "!").queue();
+        } else if (event.getName().equals("donate")) {
+            int amount = event.getOption("amount").getAsInt();
+            Role role = event.getOption("team").getAsRole();
+            String team = role.getName();
+            //blue 1023103829916516443
+            //purple 1023104468289605662
+            //green 1023104859844653067
+            if (role.getId().equals("1023103829916516443") || role.getId().equals("1023104468289605662") || role.getId().equals("1023104859844653067")) {
+                if (checkEmote(event.getUser().getId(), "coin") >= amount) {
+                    RemoveEmote(event.getUser().getId(), "coin", amount);
+                    AddEmote(role.getId(), "coin", amount);
+                    event.reply(event.getUser().getAsMention() + " donated " + amount + " coins to " + team + "!").queue();
+                    if (!event.getGuild().getMembersWithRoles(role).contains(event.getUser())) {
+                        event.getGuild().addRoleToMember(event.getMember(), role).queue();
+                    }
+                    File userFile = CheckForUserFile(event.getUser().getId());
+                    try {
+                        FileInputStream fis = new FileInputStream(userFile);
+                        byte[] data = new byte[(int) userFile.length()];
+                        fis.read(data);
+                        fis.close();
+                        String json = new String(data, StandardCharsets.UTF_8);
+                        Gson gson = new Gson();
+                        JsonObject jsonObject = gson.fromJson(json, JsonObject.class);
+                        int coins = jsonObject.get("donated").getAsInt();
+                        coins += amount;
+                        jsonObject.addProperty("donated", coins);
+                        FileOutputStream fos = new FileOutputStream(userFile);
+                        fos.write(gson.toJson(jsonObject).getBytes());
+                        fos.close();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                } else {
+                    event.reply(event.getUser().getAsMention() + " you don't have enough coins!").queue();
+                }
 
-    @Override
-    public void onMessageReactionAdd(@NotNull MessageReactionAddEvent event) {
-        if (event.getUser().isBot()) return;
-        Channel channel = event.getChannel();
-        if (channel.getIdLong() == 896980872656457788L) {
-            switch (event.getEmoji().getType()) {
-                case UNICODE:
-                    UnicodeEmoji emoji = event.getEmoji().asUnicode();
-//                    log.info("Unicode Emoji as Codepoints: " + emoji.getAsCodepoints());
-//                    log.info("Unicode Emoji Formatted: " + emoji.getFormatted());
-//                    log.info("Unicode Emoji Name: " + emoji.getName());
-                    if (emoji.getAsCodepoints().equals("U+1f58cU+fe0f")) {
-                        event.getGuild().addRoleToMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(923362820555436042L))).queue();
-                    }
-                    break;
-                case CUSTOM:
-                    CustomEmoji customEmoji = event.getEmoji().asCustom();
-//                    log.info("Custom Emoji: " + customEmoji.getName());
-                    if (customEmoji.getName().equals("WIP")) {
-                        event.getGuild().addRoleToMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(896981811270406214L))).queue();
-                    }
-                    break;
+            } else {
+                event.reply("You can only donate to " + event.getJDA().getRoleById("1023103829916516443").getAsMention() + ", " + event.getJDA().getRoleById("1023104468289605662").getAsMention() + ", or " + event.getJDA().getRoleById("1023104859844653067").getAsMention()).queue();
             }
 
 
-        }
+        } else if (event.getName().equals("coins")) {
+            event.reply("You have " + checkEmote(event.getUser().getId(), "coin") + " coins").setEphemeral(true).queue();
+        } else if (event.getName().equals("silvers")) {
+            event.reply("You have " + checkEmote(event.getUser().getId(), "silver") + " silver crowns").setEphemeral(true).queue();
+        } else if (event.getName().equals("golds")) {
+            event.reply("You have " + checkEmote(event.getUser().getId(), "gold") + " gold crowns").setEphemeral(true).queue();
+        } else if (event.getName().equals("addcoins")) {
+            if (event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
+                int amount = event.getOption("amount").getAsInt();
+                User user = event.getOption("user").getAsUser();
+                AddEmote(user.getId(), "coin", amount);
+                event.reply("Added " + amount + " coins to " + user.getAsMention()).queue();
+            } else {
+                event.reply("You do not have permission to use this command!").setEphemeral(true).queue();
+            }
+        } else if (event.getName().equals("leaderboard")) {
+            File[] files = Paths.get("users/").toFile().listFiles();
+            HashMap<String, Integer> coins = new HashMap<>();
+            for (File file : files) {
+                if (file.getName().equals("1023103829916516443.json")||file.getName().equals("1023104468289605662.json")||file.getName().equals("1023104859844653067.json")) {
+                    continue;
+                }
+                try {
+                    FileInputStream fis = new FileInputStream(file);
+                    byte[] data = new byte[(int) file.length()];
+                    fis.read(data);
+                    fis.close();
+                    String json = new String(data, StandardCharsets.UTF_8);
+                    Gson gson = new Gson();
+                    JsonObject jsonObject = gson.fromJson(json, JsonObject.class);
+                    coins.put(file.getName().replace(".json", ""), jsonObject.get("coin").getAsInt());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+            coins = sortByValue(coins);
+            StringBuilder leaderboard = new StringBuilder();
+            int i = 1;
+            for (String user : coins.keySet()) {
+                User u = event.getJDA().getUserById(user);
+                if (u == null) {
+                    u = event.getJDA().retrieveUserById(user).complete();
+                }
+                leaderboard.append(i).append(". ").append(u.getAsMention()).append(" - ").append(coins.get(user)).append(" coins\n");
+                i++;
+                if (i == 11) {
+                    break;
+                }
+            }
+            event.reply(leaderboard.toString()).setEphemeral(true).queue();
+        } else if (event.getName().equals("teamleaderboard")) {
+            File[] files = Paths.get("users/").toFile().listFiles();
+            HashMap<String, Integer> coins = new HashMap<>();
+            for (File file : files) {
+                if (!file.getName().equals("1023103829916516443.json") && !file.getName().equals("1023104468289605662.json") && !file.getName().equals("1023104859844653067.json")) {
+                    continue;
+                }
+                try {
+                    FileInputStream fis = new FileInputStream(file);
+                    byte[] data = new byte[(int) file.length()];
+                    fis.read(data);
+                    fis.close();
+                    String json = new String(data, StandardCharsets.UTF_8);
+                    Gson gson = new Gson();
+                    JsonObject jsonObject = gson.fromJson(json, JsonObject.class);
+                    coins.put(file.getName().replace(".json", ""), jsonObject.get("coin").getAsInt());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+            coins = sortByValue(coins);
+            StringBuilder leaderboard = new StringBuilder();
+            int i = 1;
+            for (String user : coins.keySet()) {
+                leaderboard.append(i).append(". ").append(event.getJDA().getRoleById(user).getAsMention()).append(" - ").append(coins.get(user)).append(" coins\n");
+                i++;
 
-        if (event.isFromThread()) {
+            }
+            event.reply(leaderboard.toString()).setEphemeral(true).queue();
+        }
+    }
+
+        @Override
+        public void onMessageReactionAdd (@NotNull MessageReactionAddEvent event){
+            if (event.getUser().isBot()) return;
+            Channel channel = event.getChannel();
+            if (channel.getIdLong() == 896980872656457788L) {
+                switch (event.getEmoji().getType()) {
+                    case UNICODE:
+                        UnicodeEmoji emoji = event.getEmoji().asUnicode();
+//                    log.info("Unicode Emoji as Codepoints: " + emoji.getAsCodepoints());
+//                    log.info("Unicode Emoji Formatted: " + emoji.getFormatted());
+//                    log.info("Unicode Emoji Name: " + emoji.getName());
+                        if (emoji.getAsCodepoints().equals("U+1f58cU+fe0f")) {
+                            event.getGuild().addRoleToMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(923362820555436042L))).queue();
+                        }
+                        break;
+                    case CUSTOM:
+                        CustomEmoji customEmoji = event.getEmoji().asCustom();
+//                    log.info("Custom Emoji: " + customEmoji.getName());
+                        if (customEmoji.getName().equals("WIP")) {
+                            event.getGuild().addRoleToMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(896981811270406214L))).queue();
+                        }
+                        break;
+                }
+
+
+            }
+
+//        if (event.isFromThread()) {
             Message message = event.getChannel().retrieveMessageById(event.getMessageId()).complete();
             String authorID = message.getAuthor().getId();
             if (!event.getUserId().equals(authorID)) {
@@ -152,42 +286,42 @@ public class CuratorBot extends ListenerAdapter {
                         CustomEmoji customEmoji = event.getEmoji().asCustom();
 //                log.info("Custom Emoji: " + customEmoji.getName());
                         if (customEmoji.getName().equals("bigcoin")) {
-                            AddEmote(authorID, "coin");
+                            AddEmote(authorID, "coin", 1);
                         } else if (customEmoji.getName().equals("silver")) {
-                            AddEmote(authorID, "silver");
+                            AddEmote(authorID, "silver", 1);
                         } else if (customEmoji.getName().equals("gold")) {
-                            AddEmote(authorID, "gold");
+                            AddEmote(authorID, "gold", 1);
                         }
                         break;
                 }
             }
+//        }
+            super.onMessageReactionAdd(event);
         }
-        super.onMessageReactionAdd(event);
-    }
 
-    @Override
-    public void onMessageReactionRemove(@NotNull MessageReactionRemoveEvent event) {
+        @Override
+        public void onMessageReactionRemove (@NotNull MessageReactionRemoveEvent event){
 
-        if (event.getUser().isBot()) return;
-        Channel channel = event.getChannel();
-        if (channel.getIdLong() == 896980872656457788L) {
-            switch (event.getEmoji().getType()) {
-                case UNICODE:
-                    UnicodeEmoji emoji = event.getEmoji().asUnicode();
-                    if (emoji.getAsCodepoints().equals("U+1f58cU+fe0f")) {
-                        event.getGuild().removeRoleFromMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(923362820555436042L))).queue();
-                    }
-                    break;
-                case CUSTOM:
-                    CustomEmoji customEmoji = event.getEmoji().asCustom();
+            if (event.getUser().isBot()) return;
+            Channel channel = event.getChannel();
+            if (channel.getIdLong() == 896980872656457788L) {
+                switch (event.getEmoji().getType()) {
+                    case UNICODE:
+                        UnicodeEmoji emoji = event.getEmoji().asUnicode();
+                        if (emoji.getAsCodepoints().equals("U+1f58cU+fe0f")) {
+                            event.getGuild().removeRoleFromMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(923362820555436042L))).queue();
+                        }
+                        break;
+                    case CUSTOM:
+                        CustomEmoji customEmoji = event.getEmoji().asCustom();
 //                    log.info("Custom Emoji: " + customEmoji.getName());
-                    if (customEmoji.getName().equals("WIP")) {
-                        event.getGuild().removeRoleFromMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(896981811270406214L))).queue();
-                    }
-                    break;
+                        if (customEmoji.getName().equals("WIP")) {
+                            event.getGuild().removeRoleFromMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(896981811270406214L))).queue();
+                        }
+                        break;
+                }
             }
-        }
-        if (event.isFromThread()) {
+//        if (event.isFromThread()) {
             Message message = event.getChannel().retrieveMessageById(event.getMessageId()).complete();
             String authorID = message.getAuthor().getId();
             switch (event.getEmoji().getType()) {
@@ -196,106 +330,119 @@ public class CuratorBot extends ListenerAdapter {
                 case CUSTOM:
                     CustomEmoji customEmoji = event.getEmoji().asCustom();
                     if (customEmoji.getName().equals("bigcoin")) {
-                        RemoveEmote(authorID, "coin");
+                        RemoveEmote(authorID, "coin", 1);
                     } else if (customEmoji.getName().equals("silver")) {
-                        RemoveEmote(authorID, "silver");
+                        RemoveEmote(authorID, "silver", 1);
                     } else if (customEmoji.getName().equals("gold")) {
-                        RemoveEmote(authorID, "gold");
+                        RemoveEmote(authorID, "gold", 1);
                     }
                     break;
             }
+//        }
         }
-    }
-    public int AddEmote(String authorID, String emoteName) {
-        File userFile = CheckForUserFile(authorID);
-        //read the file
-        try {
-            FileInputStream fis = new FileInputStream(userFile);
-            byte[] data = new byte[(int) userFile.length()];
-            fis.read(data);
-            fis.close();
-            String json = new String(data, StandardCharsets.UTF_8);
-            Gson gson = new Gson();
-            JsonObject jsonObject = gson.fromJson(json, JsonObject.class);
-            int coins = jsonObject.get(emoteName).getAsInt();
-            coins++;
-            jsonObject.addProperty(emoteName, coins);
-            FileOutputStream fos = new FileOutputStream(userFile);
-            fos.write(gson.toJson(jsonObject).getBytes());
-            fos.close();
-            return coins;
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return 0;
-    }
-
-    public int RemoveEmote(String authorID, String emoteName){
-
-        File userFile = CheckForUserFile(authorID);;
-        //read the file
-        try {
-            FileInputStream fis = new FileInputStream(userFile);
-            byte[] data = new byte[(int) userFile.length()];
-            fis.read(data);
-            fis.close();
-            String json = new String(data, StandardCharsets.UTF_8);
-            Gson gson = new Gson();
-            JsonObject jsonObject = gson.fromJson(json, JsonObject.class);
-            int coins = jsonObject.get(emoteName).getAsInt();
-            coins--;
-            if (coins < 0) {
-                coins = 0;
-            }
-            jsonObject.addProperty(emoteName, coins);
-            FileOutputStream fos = new FileOutputStream(userFile);
-            fos.write(gson.toJson(jsonObject).getBytes());
-            fos.close();
-            return coins;
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return 0;
-    }
-
-    public int checkEmote(String authorID, String emoteName){
-        File userFile = CheckForUserFile(authorID);
-        //read the file
-        try {
-            FileInputStream fis = new FileInputStream(userFile);
-            byte[] data = new byte[(int) userFile.length()];
-            fis.read(data);
-            fis.close();
-            String json = new String(data, StandardCharsets.UTF_8);
-            Gson gson = new Gson();
-            JsonObject jsonObject = gson.fromJson(json, JsonObject.class);
-            int coins = jsonObject.get(emoteName).getAsInt();
-            return coins;
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return 0;
-    }
-
-    private File CheckForUserFile(String authorID) {
-        File userFile = new File("users/"+ authorID +".json");
-        if (!userFile.exists()){
-            //create the file
+        public int AddEmote (String authorID, String emoteName,int amount){
+            File userFile = CheckForUserFile(authorID);
+            //read the file
             try {
-                userFile.createNewFile();
-                FileOutputStream fos = new FileOutputStream(userFile);
-                JsonObject jsonObject = new JsonObject();
-                jsonObject.addProperty("coin", 0);
-                jsonObject.addProperty("silver", 0);
-                jsonObject.addProperty("gold", 0);
+                FileInputStream fis = new FileInputStream(userFile);
+                byte[] data = new byte[(int) userFile.length()];
+                fis.read(data);
+                fis.close();
+                String json = new String(data, StandardCharsets.UTF_8);
                 Gson gson = new Gson();
+                JsonObject jsonObject = gson.fromJson(json, JsonObject.class);
+                int coins = jsonObject.get(emoteName).getAsInt();
+                coins += amount;
+                jsonObject.addProperty(emoteName, coins);
+                FileOutputStream fos = new FileOutputStream(userFile);
                 fos.write(gson.toJson(jsonObject).getBytes());
                 fos.close();
+                return coins;
             } catch (Exception e) {
                 e.printStackTrace();
             }
+            return 0;
         }
-        return userFile;
-    }
 
-}
+        public int RemoveEmote (String authorID, String emoteName,int amount){
+
+            File userFile = CheckForUserFile(authorID);
+            ;
+            //read the file
+            try {
+                FileInputStream fis = new FileInputStream(userFile);
+                byte[] data = new byte[(int) userFile.length()];
+                fis.read(data);
+                fis.close();
+                String json = new String(data, StandardCharsets.UTF_8);
+                Gson gson = new Gson();
+                JsonObject jsonObject = gson.fromJson(json, JsonObject.class);
+                int coins = jsonObject.get(emoteName).getAsInt();
+                coins -= amount;
+                if (coins < 0) {
+                    coins = 0;
+                }
+                jsonObject.addProperty(emoteName, coins);
+                FileOutputStream fos = new FileOutputStream(userFile);
+                fos.write(gson.toJson(jsonObject).getBytes());
+                fos.close();
+                return coins;
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return 0;
+        }
+
+        public int checkEmote (String authorID, String emoteName){
+            File userFile = CheckForUserFile(authorID);
+            //read the file
+            try {
+                FileInputStream fis = new FileInputStream(userFile);
+                byte[] data = new byte[(int) userFile.length()];
+                fis.read(data);
+                fis.close();
+                String json = new String(data, StandardCharsets.UTF_8);
+                Gson gson = new Gson();
+                JsonObject jsonObject = gson.fromJson(json, JsonObject.class);
+                int coins = jsonObject.get(emoteName).getAsInt();
+                return coins;
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return 0;
+        }
+
+        private File CheckForUserFile (String authorID){
+            File userFile = new File("users/" + authorID + ".json");
+            if (!userFile.exists()) {
+                //create the file
+                try {
+                    userFile.createNewFile();
+                    FileOutputStream fos = new FileOutputStream(userFile);
+                    JsonObject jsonObject = new JsonObject();
+                    jsonObject.addProperty("coin", 0);
+                    jsonObject.addProperty("silver", 0);
+                    jsonObject.addProperty("gold", 0);
+                    jsonObject.addProperty("donated", 0);
+                    Gson gson = new Gson();
+                    fos.write(gson.toJson(jsonObject).getBytes());
+                    fos.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+            return userFile;
+        }
+
+
+        private HashMap<String, Integer> sortByValue (HashMap < String, Integer > coins){
+
+            List<Map.Entry<String, Integer>> list = new LinkedList<>(coins.entrySet());
+            list.sort(Map.Entry.comparingByValue(Comparator.reverseOrder()));
+            HashMap<String, Integer> sortedMap = new LinkedHashMap<>();
+            for (Map.Entry<String, Integer> entry : list) {
+                sortedMap.put(entry.getKey(), entry.getValue());
+            }
+            return sortedMap;
+        }
+    }
