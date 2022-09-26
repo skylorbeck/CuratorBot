@@ -22,6 +22,7 @@ import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
 import net.dv8tion.jda.api.requests.restaction.CacheRestAction;
+import net.dv8tion.jda.api.requests.restaction.interactions.ReplyCallbackAction;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import net.dv8tion.jda.internal.interactions.CommandDataImpl;
@@ -37,13 +38,21 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
+
+//blue 1023103829916516443
+//purple 1023104468289605662
+//green 1023104859844653067
+
 public class CuratorBot extends ListenerAdapter {
     private static final Logger log = Logger.getLogger("CuratorBot");
     private static Random ran;
 
+    public static final long SKYBLUE = 1023103829916516443L;
+    public static final long ELECTRICPURPLE = 1023104468289605662L;
+    public static final long BRIGHTGREEN = 1023104859844653067L;
+
     public static void main(String[] args) throws LoginException {
         JDABuilder builder = JDABuilder.createDefault(args[0]);
-        // Set activity (like "playing Something")
         builder.disableCache(CacheFlag.ACTIVITY);
         builder.setMemberCachePolicy(MemberCachePolicy.ONLINE.or(MemberCachePolicy.OWNER));
         builder.setActivity(Activity.watching("you"));
@@ -95,6 +104,12 @@ public class CuratorBot extends ListenerAdapter {
         CommandDataImpl teamleaderboard = new CommandDataImpl("teamleaderboard", "See which team has the most coins");
         jda.upsertCommand(teamleaderboard).queue();
 
+        CommandDataImpl quit = new CommandDataImpl("quit", "Shut down the bot");
+        quit.setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.ADMINISTRATOR));
+        jda.upsertCommand(quit).queue();
+
+
+
         ran = new Random(System.currentTimeMillis());
 //        log.info("Initalized Random");
         Paths.get("users/").toFile().mkdirs();
@@ -104,7 +119,8 @@ public class CuratorBot extends ListenerAdapter {
 
     @Override
     public void onSlashCommandInteraction(@NotNull SlashCommandInteractionEvent event) {
-        if (event.getName().equals("damage")) {
+        String command = event.getName();
+        if (command.equals("damage")) {
             int amount = event.getOption("amount").getAsInt();
             OptionMapping type = event.getOption("type");
             if (type != null) {
@@ -112,11 +128,11 @@ public class CuratorBot extends ListenerAdapter {
             } else {
                 event.reply(event.getUser().getAsMention() + " took " + amount + " damage!").queue();
             }
-        } else if (event.getName().equals("random")) {
+        } else if (command.equals("random")) {
             int min = event.getOption("min").getAsInt();
             int max = event.getOption("max").getAsInt();
             event.reply("Your random number is " + ran.nextInt(max - min + 1) + min + "!").queue();
-        } else if (event.getName().equals("roll")) {
+        } else if (command.equals("roll")) {
             int amount = event.getOption("amount").getAsInt();
             int sides = event.getOption("sides").getAsInt();
             int total = 0;
@@ -124,21 +140,45 @@ public class CuratorBot extends ListenerAdapter {
                 total += ran.nextInt(sides) + 1;
             }
             event.reply(event.getUser().getAsMention() + " rolled " + amount + "d" + sides + " and got " + total + "!").queue();
-        } else if (event.getName().equals("donate")) {
+        } else if (command.equals("donate")) {
             int amount = event.getOption("amount").getAsInt();
             Role role = event.getOption("team").getAsRole();
             String team = role.getName();
-            //blue 1023103829916516443
-            //purple 1023104468289605662
-            //green 1023104859844653067
             if (role.getId().equals("1023103829916516443") || role.getId().equals("1023104468289605662") || role.getId().equals("1023104859844653067")) {
                 if (checkEmote(event.getUser().getId(), "coin") >= amount) {
                     RemoveEmote(event.getUser().getId(), "coin", amount);
                     AddEmote(role.getId(), "coin", amount);
-                    event.reply(event.getUser().getAsMention() + " donated " + amount + " coins to " + team + "!").queue();
-                    if (!event.getGuild().getMembersWithRoles(role).contains(event.getUser())) {
+                    ReplyCallbackAction reply = event.reply(event.getUser().getAsMention() + " donated " + amount + " coins to " + role.getAsMention() + "!");
+                    if (role.getIdLong()==SKYBLUE&&!event.getGuild().getMembersWithRoles(role).contains(event.getMember())) {
                         event.getGuild().addRoleToMember(event.getMember(), role).queue();
+                        if (event.getGuild().getMembersWithRoles(event.getGuild().getRoleById(BRIGHTGREEN)).contains(event.getMember())) {
+                            event.getGuild().removeRoleFromMember(event.getMember(), event.getGuild().getRoleById(BRIGHTGREEN)).queue();
+                            reply.addContent(event.getUser().getAsMention() + " DEFECTED FROM " + event.getGuild().getRoleById(BRIGHTGREEN).getAsMention()).queue();
+                        } else if (event.getGuild().getMembersWithRoles(event.getGuild().getRoleById(ELECTRICPURPLE)).contains(event.getMember())) {
+                            event.getGuild().removeRoleFromMember(event.getMember(), event.getGuild().getRoleById(ELECTRICPURPLE)).queue();
+                            reply.addContent(event.getUser().getAsMention() + " DEFECTED FROM " + event.getGuild().getRoleById(ELECTRICPURPLE).getAsMention()).queue();
+                        }
+                    } else if (role.getIdLong()==BRIGHTGREEN&&!event.getGuild().getMembersWithRoles(role).contains(event.getMember())) {
+                        event.getGuild().addRoleToMember(event.getMember(), role).queue();
+                        if (event.getGuild().getMembersWithRoles(event.getGuild().getRoleById(SKYBLUE)).contains(event.getMember())) {
+                            event.getGuild().removeRoleFromMember(event.getMember(), event.getGuild().getRoleById(SKYBLUE)).queue();
+                            reply.addContent(event.getUser().getAsMention() + " DEFECTED FROM " + event.getGuild().getRoleById(SKYBLUE).getAsMention()).queue();
+                        } else if (event.getGuild().getMembersWithRoles(event.getGuild().getRoleById(ELECTRICPURPLE)).contains(event.getMember())) {
+                            event.getGuild().removeRoleFromMember(event.getMember(), event.getGuild().getRoleById(ELECTRICPURPLE)).queue();
+                            reply.addContent(event.getUser().getAsMention() + " DEFECTED FROM " + event.getGuild().getRoleById(ELECTRICPURPLE).getAsMention()).queue();
+                        }
+                    } else if (role.getIdLong()==ELECTRICPURPLE&&!event.getGuild().getMembersWithRoles(role).contains(event.getMember())) {
+                        event.getGuild().addRoleToMember(event.getMember(), role).queue();
+                        if (event.getGuild().getMembersWithRoles(event.getGuild().getRoleById(SKYBLUE)).contains(event.getMember())) {
+                            event.getGuild().removeRoleFromMember(event.getMember(), event.getGuild().getRoleById(SKYBLUE)).queue();
+                            reply.addContent(event.getUser().getAsMention() + " DEFECTED FROM " + event.getGuild().getRoleById(SKYBLUE).getAsMention()).queue();
+                        } else if (event.getGuild().getMembersWithRoles(event.getGuild().getRoleById(BRIGHTGREEN)).contains(event.getMember())) {
+                            event.getGuild().removeRoleFromMember(event.getMember(), event.getGuild().getRoleById(BRIGHTGREEN)).queue();
+                            reply.addContent(event.getUser().getAsMention() + " DEFECTED FROM " + event.getGuild().getRoleById(BRIGHTGREEN).getAsMention()).queue();
+                        }
                     }
+
+
                     File userFile = CheckForUserFile(event.getUser().getId());
                     try {
                         FileInputStream fis = new FileInputStream(userFile);
@@ -158,21 +198,21 @@ public class CuratorBot extends ListenerAdapter {
                         e.printStackTrace();
                     }
                 } else {
-                    event.reply(event.getUser().getAsMention() + " you don't have enough coins!").queue();
+                    event.reply(event.getUser().getAsMention() + " you don't have enough coins!").setEphemeral(true).queue();
                 }
 
             } else {
-                event.reply("You can only donate to " + event.getJDA().getRoleById("1023103829916516443").getAsMention() + ", " + event.getJDA().getRoleById("1023104468289605662").getAsMention() + ", or " + event.getJDA().getRoleById("1023104859844653067").getAsMention()).queue();
+                event.reply("You can only donate to " + event.getJDA().getRoleById("1023103829916516443").getAsMention() + ", " + event.getJDA().getRoleById("1023104468289605662").getAsMention() + ", or " + event.getJDA().getRoleById("1023104859844653067").getAsMention()).setEphemeral(true).queue();
             }
 
 
-        } else if (event.getName().equals("coins")) {
+        } else if (command.equals("coins")) {
             event.reply("You have " + checkEmote(event.getUser().getId(), "coin") + " coins").setEphemeral(true).queue();
-        } else if (event.getName().equals("silvers")) {
+        } else if (command.equals("silvers")) {
             event.reply("You have " + checkEmote(event.getUser().getId(), "silver") + " silver crowns").setEphemeral(true).queue();
-        } else if (event.getName().equals("golds")) {
+        } else if (command.equals("golds")) {
             event.reply("You have " + checkEmote(event.getUser().getId(), "gold") + " gold crowns").setEphemeral(true).queue();
-        } else if (event.getName().equals("addcoins")) {
+        } else if (command.equals("addcoins")) {
             if (event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
                 int amount = event.getOption("amount").getAsInt();
                 User user = event.getOption("user").getAsUser();
@@ -181,7 +221,7 @@ public class CuratorBot extends ListenerAdapter {
             } else {
                 event.reply("You do not have permission to use this command!").setEphemeral(true).queue();
             }
-        } else if (event.getName().equals("leaderboard")) {
+        } else if (command.equals("leaderboard")) {
             File[] files = Paths.get("users/").toFile().listFiles();
             HashMap<String, Integer> coins = new HashMap<>();
             for (File file : files) {
@@ -216,7 +256,7 @@ public class CuratorBot extends ListenerAdapter {
                 }
             }
             event.reply(leaderboard.toString()).setEphemeral(true).queue();
-        } else if (event.getName().equals("teamleaderboard")) {
+        } else if (command.equals("teamleaderboard")) {
             File[] files = Paths.get("users/").toFile().listFiles();
             HashMap<String, Integer> coins = new HashMap<>();
             for (File file : files) {
@@ -245,6 +285,8 @@ public class CuratorBot extends ListenerAdapter {
 
             }
             event.reply(leaderboard.toString()).setEphemeral(true).queue();
+        } else if (command.equals("quit")){
+            event.getJDA().shutdown();
         }
     }
 
@@ -265,9 +307,27 @@ public class CuratorBot extends ListenerAdapter {
                         break;
                     case CUSTOM:
                         CustomEmoji customEmoji = event.getEmoji().asCustom();
-//                    log.info("Custom Emoji: " + customEmoji.getName());
-                        if (customEmoji.getName().equals("WIP")) {
+                        String name = customEmoji.getName();
+                        if (name.equals("WIP")) {
                             event.getGuild().addRoleToMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(896981811270406214L))).queue();
+                        } else if (name.equals("sky_blue")){
+                            event.getGuild().addRoleToMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(SKYBLUE))).queue();
+                            event.retrieveMessage().complete().removeReaction(event.getJDA().getEmojisByName("electric_purple",true).get(0), event.getUser()).queue();
+                            event.getGuild().removeRoleFromMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(ELECTRICPURPLE))).queue();
+                            event.retrieveMessage().complete().removeReaction(event.getJDA().getEmojisByName("bright_green",true).get(0), event.getUser()).queue();
+                            event.getGuild().removeRoleFromMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(BRIGHTGREEN))).queue();
+                        } else if (name.equals("electric_purple")){
+                            event.getGuild().addRoleToMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(ELECTRICPURPLE))).queue();
+                            event.retrieveMessage().complete().removeReaction(event.getJDA().getEmojisByName("sky_blue",true).get(0), event.getUser()).queue();
+                            event.getGuild().removeRoleFromMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(SKYBLUE))).queue();
+                            event.retrieveMessage().complete().removeReaction(event.getJDA().getEmojisByName("bright_green",true).get(0), event.getUser()).queue();
+                            event.getGuild().removeRoleFromMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(BRIGHTGREEN))).queue();
+                        } else if (name.equals("bright_green")){
+                            event.getGuild().addRoleToMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(BRIGHTGREEN))).queue();
+                            event.retrieveMessage().complete().removeReaction(event.getJDA().getEmojisByName("electric_purple",true).get(0), event.getUser()).queue();
+                            event.getGuild().removeRoleFromMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(ELECTRICPURPLE))).queue();
+                            event.retrieveMessage().complete().removeReaction(event.getJDA().getEmojisByName("sky_blue",true).get(0), event.getUser()).queue();
+                            event.getGuild().removeRoleFromMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(SKYBLUE))).queue();
                         }
                         break;
                 }
@@ -284,12 +344,12 @@ public class CuratorBot extends ListenerAdapter {
                         break;
                     case CUSTOM:
                         CustomEmoji customEmoji = event.getEmoji().asCustom();
-//                log.info("Custom Emoji: " + customEmoji.getName());
-                        if (customEmoji.getName().equals("bigcoin")) {
+                        String name = customEmoji.getName();
+                        if (name.equals("bigcoin")) {
                             AddEmote(authorID, "coin", 1);
-                        } else if (customEmoji.getName().equals("silver")) {
+                        } else if (name.equals("silver")) {
                             AddEmote(authorID, "silver", 1);
-                        } else if (customEmoji.getName().equals("gold")) {
+                        } else if (name.equals("gold")) {
                             AddEmote(authorID, "gold", 1);
                         }
                         break;
@@ -314,10 +374,16 @@ public class CuratorBot extends ListenerAdapter {
                         break;
                     case CUSTOM:
                         CustomEmoji customEmoji = event.getEmoji().asCustom();
-//                    log.info("Custom Emoji: " + customEmoji.getName());
-                        if (customEmoji.getName().equals("WIP")) {
+                      String name = customEmoji.getName();
+                        if (name.equals("WIP")) {
                             event.getGuild().removeRoleFromMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(896981811270406214L))).queue();
-                        }
+                        }/* else if (name.equals("sky_blue")){
+                            event.getGuild().removeRoleFromMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(SKYBLUE))).queue();
+                        } else if (name.equals("electric_purple")){
+                            event.getGuild().removeRoleFromMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(ELECTRICPURPLE))).queue();
+                        } else if (name.equals("bright_green")){
+                            event.getGuild().removeRoleFromMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(BRIGHTGREEN))).queue();
+                        }*/
                         break;
                 }
             }
@@ -329,11 +395,12 @@ public class CuratorBot extends ListenerAdapter {
                     break;
                 case CUSTOM:
                     CustomEmoji customEmoji = event.getEmoji().asCustom();
-                    if (customEmoji.getName().equals("bigcoin")) {
+                    String name = customEmoji.getName();
+                    if (name.equals("bigcoin")) {
                         RemoveEmote(authorID, "coin", 1);
-                    } else if (customEmoji.getName().equals("silver")) {
+                    } else if (name.equals("silver")) {
                         RemoveEmote(authorID, "silver", 1);
-                    } else if (customEmoji.getName().equals("gold")) {
+                    } else if (name.equals("gold")) {
                         RemoveEmote(authorID, "gold", 1);
                     }
                     break;
