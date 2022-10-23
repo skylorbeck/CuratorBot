@@ -1,27 +1,24 @@
 package website.skylorbeck.curatorbot;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.Activity;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.Channel;
 import net.dv8tion.jda.api.entities.emoji.CustomEmoji;
 import net.dv8tion.jda.api.entities.emoji.UnicodeEmoji;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
-import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.events.message.react.MessageReactionAddEvent;
 import net.dv8tion.jda.api.events.message.react.MessageReactionRemoveEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
-import net.dv8tion.jda.api.interactions.commands.Command;
 import net.dv8tion.jda.api.interactions.commands.DefaultMemberPermissions;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
-import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
-import net.dv8tion.jda.api.requests.restaction.CacheRestAction;
 import net.dv8tion.jda.api.requests.restaction.interactions.ReplyCallbackAction;
 import net.dv8tion.jda.api.utils.MemberCachePolicy;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
@@ -35,7 +32,6 @@ import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 
@@ -97,6 +93,12 @@ public class CuratorBot extends ListenerAdapter {
         addCoins.addOption(OptionType.INTEGER, "amount", "How many coins to add", true);
         addCoins.setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.ADMINISTRATOR));
         jda.upsertCommand(addCoins).queue();
+        
+        CommandDataImpl removecoins = new CommandDataImpl("removecoins", "Add some coins to a user");
+        removecoins.addOption(OptionType.USER, "user", "The user to add coins to", true);
+        removecoins.addOption(OptionType.INTEGER, "amount", "How many coins to add", true);
+        removecoins.setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.ADMINISTRATOR));
+        jda.upsertCommand(removecoins).queue();
 
         CommandDataImpl leaderboard = new CommandDataImpl("leaderboard", "See who has the most coins");
         jda.upsertCommand(leaderboard).queue();
@@ -148,35 +150,36 @@ public class CuratorBot extends ListenerAdapter {
                 if (checkEmote(event.getUser().getId(), "coin") >= amount) {
                     RemoveEmote(event.getUser().getId(), "coin", amount);
                     AddEmote(role.getId(), "coin", amount);
-                    ReplyCallbackAction reply = event.reply(event.getUser().getAsMention() + " donated " + amount + " coins to " + role.getAsMention() + "!");
+                    ReplyCallbackAction reply = event.reply(event.getUser().getAsMention() + " donated " + amount + " coins to " + role.getName().toUpperCase(Locale.ROOT) + "! ");
                     if (role.getIdLong()==SKYBLUE&&!event.getGuild().getMembersWithRoles(role).contains(event.getMember())) {
                         event.getGuild().addRoleToMember(event.getMember(), role).queue();
                         if (event.getGuild().getMembersWithRoles(event.getGuild().getRoleById(BRIGHTGREEN)).contains(event.getMember())) {
                             event.getGuild().removeRoleFromMember(event.getMember(), event.getGuild().getRoleById(BRIGHTGREEN)).queue();
-                            reply.addContent(event.getUser().getAsMention() + " DEFECTED FROM " + event.getGuild().getRoleById(BRIGHTGREEN).getAsMention()).queue();
+                            reply.addContent(" "+event.getUser().getName().toUpperCase(Locale.ROOT) + " DEFECTED FROM " + event.getGuild().getRoleById(BRIGHTGREEN).getName().toUpperCase(Locale.ROOT)).queue();
                         } else if (event.getGuild().getMembersWithRoles(event.getGuild().getRoleById(ELECTRICPURPLE)).contains(event.getMember())) {
                             event.getGuild().removeRoleFromMember(event.getMember(), event.getGuild().getRoleById(ELECTRICPURPLE)).queue();
-                            reply.addContent(event.getUser().getAsMention() + " DEFECTED FROM " + event.getGuild().getRoleById(ELECTRICPURPLE).getAsMention()).queue();
+                            reply.addContent(" "+event.getUser().getName().toUpperCase(Locale.ROOT) + " DEFECTED FROM " + event.getGuild().getRoleById(ELECTRICPURPLE).getName().toUpperCase(Locale.ROOT)).queue();
                         }
                     } else if (role.getIdLong()==BRIGHTGREEN&&!event.getGuild().getMembersWithRoles(role).contains(event.getMember())) {
                         event.getGuild().addRoleToMember(event.getMember(), role).queue();
                         if (event.getGuild().getMembersWithRoles(event.getGuild().getRoleById(SKYBLUE)).contains(event.getMember())) {
                             event.getGuild().removeRoleFromMember(event.getMember(), event.getGuild().getRoleById(SKYBLUE)).queue();
-                            reply.addContent(event.getUser().getAsMention() + " DEFECTED FROM " + event.getGuild().getRoleById(SKYBLUE).getAsMention()).queue();
+                            reply.addContent(" "+event.getUser().getName().toUpperCase(Locale.ROOT) + " DEFECTED FROM " + event.getGuild().getRoleById(SKYBLUE).getName().toUpperCase(Locale.ROOT)).queue();
                         } else if (event.getGuild().getMembersWithRoles(event.getGuild().getRoleById(ELECTRICPURPLE)).contains(event.getMember())) {
                             event.getGuild().removeRoleFromMember(event.getMember(), event.getGuild().getRoleById(ELECTRICPURPLE)).queue();
-                            reply.addContent(event.getUser().getAsMention() + " DEFECTED FROM " + event.getGuild().getRoleById(ELECTRICPURPLE).getAsMention()).queue();
+                            reply.addContent(" "+event.getUser().getName().toUpperCase(Locale.ROOT) + " DEFECTED FROM " + event.getGuild().getRoleById(ELECTRICPURPLE).getName().toUpperCase(Locale.ROOT)).queue();
                         }
                     } else if (role.getIdLong()==ELECTRICPURPLE&&!event.getGuild().getMembersWithRoles(role).contains(event.getMember())) {
                         event.getGuild().addRoleToMember(event.getMember(), role).queue();
                         if (event.getGuild().getMembersWithRoles(event.getGuild().getRoleById(SKYBLUE)).contains(event.getMember())) {
                             event.getGuild().removeRoleFromMember(event.getMember(), event.getGuild().getRoleById(SKYBLUE)).queue();
-                            reply.addContent(event.getUser().getAsMention() + " DEFECTED FROM " + event.getGuild().getRoleById(SKYBLUE).getAsMention()).queue();
+                            reply.addContent(" "+event.getUser().getName().toUpperCase(Locale.ROOT) + " DEFECTED FROM " + event.getGuild().getRoleById(SKYBLUE).getName().toUpperCase(Locale.ROOT)).queue();
                         } else if (event.getGuild().getMembersWithRoles(event.getGuild().getRoleById(BRIGHTGREEN)).contains(event.getMember())) {
                             event.getGuild().removeRoleFromMember(event.getMember(), event.getGuild().getRoleById(BRIGHTGREEN)).queue();
-                            reply.addContent(event.getUser().getAsMention() + " DEFECTED FROM " + event.getGuild().getRoleById(BRIGHTGREEN).getAsMention()).queue();
+                            reply.addContent(" "+event.getUser().getName().toUpperCase(Locale.ROOT) + " DEFECTED FROM " + event.getGuild().getRoleById(BRIGHTGREEN).getName().toUpperCase(Locale.ROOT)).queue();
                         }
                     }
+                    reply.queue();
 
 
                     File userFile = CheckForUserFile(event.getUser().getId());
@@ -218,6 +221,15 @@ public class CuratorBot extends ListenerAdapter {
                 User user = event.getOption("user").getAsUser();
                 AddEmote(user.getId(), "coin", amount);
                 event.reply("Added " + amount + " coins to " + user.getAsMention()).queue();
+            } else {
+                event.reply("You do not have permission to use this command!").setEphemeral(true).queue();
+            }
+        } else if (command.equals("removecoins")) {
+            if (event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
+                int amount = event.getOption("amount").getAsInt();
+                User user = event.getOption("user").getAsUser();
+                RemoveEmote(user.getId(), "coin", amount);
+                event.reply("Removed " + amount + " coins from " + user.getAsMention()).queue();
             } else {
                 event.reply("You do not have permission to use this command!").setEphemeral(true).queue();
             }
