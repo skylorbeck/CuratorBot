@@ -2,15 +2,14 @@ package website.skylorbeck.curatorbot;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Activity;
-import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.channel.Channel;
 import net.dv8tion.jda.api.entities.emoji.CustomEmoji;
+import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.entities.emoji.UnicodeEmoji;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.message.react.MessageReactionAddEvent;
@@ -26,12 +25,14 @@ import net.dv8tion.jda.internal.interactions.CommandDataImpl;
 import org.jetbrains.annotations.NotNull;
 
 import javax.security.auth.login.LoginException;
+import java.awt.*;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.List;
 import java.util.logging.Logger;
 
 
@@ -73,6 +74,12 @@ public class CuratorBot extends ListenerAdapter {
         roll.addOption(OptionType.INTEGER, "sides", "How many sides the dice have", true);
 
         jda.upsertCommand(roll).queue();
+
+        CommandDataImpl poll = new CommandDataImpl("poll", "Start a poll");
+        poll.addOption(OptionType.STRING, "question", "The question to ask", true);
+        poll.addOption(OptionType.STRING, "options", "The options to choose from. Split options with ','", true);
+        poll.setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.ADMINISTRATOR));
+        jda.upsertCommand(poll).queue();
 
         CommandDataImpl coinCount = new CommandDataImpl("coins", "Open your coin purse and count your coins");
         jda.upsertCommand(coinCount).queue();
@@ -207,8 +214,6 @@ public class CuratorBot extends ListenerAdapter {
             } else {
                 event.reply("You can only donate to " + event.getJDA().getRoleById("1023103829916516443").getAsMention() + ", " + event.getJDA().getRoleById("1023104468289605662").getAsMention() + ", or " + event.getJDA().getRoleById("1023104859844653067").getAsMention()).setEphemeral(true).queue();
             }
-
-
         } else if (command.equals("coins")) {
             event.reply("You have " + checkEmote(event.getUser().getId(), "coin") + " coins").setEphemeral(true).queue();
         } else if (command.equals("silvers")) {
@@ -297,7 +302,49 @@ public class CuratorBot extends ListenerAdapter {
 
             }
             event.reply(leaderboard.toString()).setEphemeral(true).queue();
-        } else if (command.equals("quit")){
+        } else if (command.equals("poll")) {
+            String question = event.getOption("question").getAsString();
+            String[] options = event.getOption("options").getAsString().split(",");
+            StringBuilder processedOptions = new StringBuilder();
+            for (int i = 0; i < options.length; i++) {
+                String option = options[i];
+                option = option.trim();
+                options[i] = option;
+
+                processedOptions
+                        //append emoji for i
+                        .append(":regional_indicator_").append((char) (97 + i)).append(": ")
+                        .append(option).append("\n");
+            }
+
+            EmbedBuilder embed = new EmbedBuilder()
+                    .setTitle(question)
+                    .setDescription("React to vote!")
+                    .setColor(new Color((int) (Math.random() * 0x1000000)))
+                    .addField("Options", processedOptions.toString(), false)
+                    .setFooter("Poll created by " + event.getUser().getAsTag(), event.getUser().getEffectiveAvatarUrl());
+            event.replyEmbeds(embed.build()).queue(
+                    message -> {
+                        message.retrieveOriginal().queue(
+                                original -> {
+                                    for (int i = 0; i < options.length; i++) {
+                                        StringBuilder emoji = new StringBuilder();
+                                        emoji.appendCodePoint(0x1F1E6 + i);
+                                        original.addReaction(Emoji.fromUnicode(emoji.toString())).queue();
+                                    }
+                                },
+                                failure -> {
+                                    event.reply( failure.getMessage()).setEphemeral(true).queue();
+                                }
+                        );
+                    },
+                    failure -> {
+                        event.reply( failure.getMessage()).setEphemeral(true).queue();
+                    }
+            );
+        }
+
+        else if (command.equals("quit")){
             event.getJDA().shutdown();
         }
     }
