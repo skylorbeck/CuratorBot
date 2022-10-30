@@ -81,6 +81,13 @@ public class CuratorBot extends ListenerAdapter {
         poll.setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.ADMINISTRATOR));
         jda.upsertCommand(poll).queue();
 
+        CommandDataImpl patch = new CommandDataImpl("patch", "Publish a patch note");
+        patch.addOption(OptionType.STRING, "title", "The name of the thing receiving the patch", true);
+        patch.addOption(OptionType.STRING, "version", "The version of the patch", true);
+        patch.addOption(OptionType.STRING, "changes", "The changes in the patch. Split changes with ','", true);
+        patch.setDefaultPermissions(DefaultMemberPermissions.enabledFor(Permission.ADMINISTRATOR));
+        jda.upsertCommand(patch).queue();
+
         CommandDataImpl coinCount = new CommandDataImpl("coins", "Open your coin purse and count your coins");
         jda.upsertCommand(coinCount).queue();
 
@@ -342,6 +349,23 @@ public class CuratorBot extends ListenerAdapter {
                         event.reply( failure.getMessage()).setEphemeral(true).queue();
                     }
             );
+        } else if (command.equals("patch")) {
+            String title = event.getOption("title").getAsString();
+            String version = "v" + event.getOption("version").getAsString();
+            String[] changes = event.getOption("changes").getAsString().split(",");
+            for (int i = 0; i < changes.length; i++) {
+                String change = changes[i];
+                change = change.trim();
+                changes[i] = change;
+
+            }
+
+            EmbedBuilder embed = new EmbedBuilder()
+                    .setTitle(title)
+                    .setDescription(version)
+                    .setColor(new Color((int) (Math.random() * 0x1000000)))
+                    .addField("ChangeLog:", String.join("\n", changes), false);
+            event.replyEmbeds(embed.build()).queue();
         }
 
         else if (command.equals("quit")){
