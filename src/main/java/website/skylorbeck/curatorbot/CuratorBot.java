@@ -381,11 +381,21 @@ public class CuratorBot extends ListenerAdapter {
                 switch (event.getEmoji().getType()) {
                     case UNICODE:
                         UnicodeEmoji emoji = event.getEmoji().asUnicode();
+                        String codepoints = emoji.getAsCodepoints();
 //                    log.info("Unicode Emoji as Codepoints: " + emoji.getAsCodepoints());
 //                    log.info("Unicode Emoji Formatted: " + emoji.getFormatted());
 //                    log.info("Unicode Emoji Name: " + emoji.getName());
-                        if (emoji.getAsCodepoints().equals("U+1f58cU+fe0f")) {
+                        if (codepoints.equals("U+1f58cU+fe0f")) {//paintbrush and creative role
                             event.getGuild().addRoleToMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(923362820555436042L))).queue();
+                        } else if (codepoints.equals("U+2753"))//question mark and poll role
+                        {
+                            event.getGuild().addRoleToMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(1037852627737788456L))).queue();
+                        } else if (codepoints.equals("U+1f4f9"))//video camera and stream role
+                        {
+                            event.getGuild().addRoleToMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(1034934699832922222L))).queue();
+                        } else if (codepoints.equals("U+1f47e"))//space invader and game night role
+                        {
+                            event.getGuild().addRoleToMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(1037852853240332299L))).queue();
                         }
                         break;
                     case CUSTOM:
@@ -451,8 +461,18 @@ public class CuratorBot extends ListenerAdapter {
                 switch (event.getEmoji().getType()) {
                     case UNICODE:
                         UnicodeEmoji emoji = event.getEmoji().asUnicode();
-                        if (emoji.getAsCodepoints().equals("U+1f58cU+fe0f")) {
+                        String codepoints = emoji.getAsCodepoints();
+                        if (codepoints.equals("U+1f58cU+fe0f")) {//paintbrush and creative role
                             event.getGuild().removeRoleFromMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(923362820555436042L))).queue();
+                        } else if (codepoints.equals("U+2753"))//question mark and poll role
+                        {
+                            event.getGuild().removeRoleFromMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(1037852627737788456L))).queue();
+                        } else if (codepoints.equals("U+1f4f9"))//video camera and stream role
+                        {
+                            event.getGuild().removeRoleFromMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(1034934699832922222L))).queue();
+                        } else if (codepoints.equals("U+1f47e"))//space invader and game night role
+                        {
+                            event.getGuild().removeRoleFromMember(Objects.requireNonNull(event.getMember()), Objects.requireNonNull(event.getGuild().getRoleById(1037852853240332299L))).queue();
                         }
                         break;
                     case CUSTOM:
